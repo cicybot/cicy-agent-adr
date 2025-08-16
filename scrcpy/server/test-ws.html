@@ -1,0 +1,307 @@
+
+<html>
+<body>
+<script>
+    const ACTION_DOWN = 0;
+    const ACTION_UP = 1;
+    const ACTION_MOVE = 2;
+
+    const POINTER_ID_MOUSE = -1;
+
+
+    const BUTTON_PRIMARY = 1 << 0;
+    const BUTTON_SECONDARY = 1 << 1;
+    const BUTTON_TERTIARY = 1 << 2;
+
+    const  KEYCODE_ENTER           = 66;
+    const  KEYCODE_DEL           = 67;
+    const  KEYCODE_HOME           = 3;
+    const  KEYCODE_BACK           = 4;
+    const  KEYCODE_RECENT_APPS           = 312;
+
+
+    const TYPE_INJECT_KEYCODE = 0;
+    const TYPE_INJECT_TEXT = 1;
+    const TYPE_INJECT_TOUCH_EVENT = 2;
+    const TYPE_INJECT_SCROLL_EVENT = 3;
+    const TYPE_BACK_OR_SCREEN_ON = 4;
+    const TYPE_EXPAND_NOTIFICATION_PANEL = 5;
+    const TYPE_EXPAND_SETTINGS_PANEL = 6;
+    const TYPE_COLLAPSE_PANELS = 7;
+    const TYPE_GET_CLIPBOARD = 8;
+    const TYPE_SET_CLIPBOARD = 9;
+    const TYPE_SET_DISPLAY_POWER = 10;
+    const TYPE_ROTATE_DEVICE = 11;
+    const TYPE_UHID_CREATE = 12;
+    const TYPE_UHID_INPUT = 13;
+    const TYPE_UHID_DESTROY = 14;
+    const TYPE_OPEN_HARD_KEYBOARD_SETTINGS = 15;
+    const TYPE_START_APP = 16;
+    const TYPE_RESET_VIDEO = 17;
+
+    const ws1 = new WebSocket("ws://localhost:9010/ws")
+    ws1.onopen =()=>{
+        console.log("ws1 onopen")
+    }
+
+    ws1.onmessage =(e)=>{
+
+    }
+
+
+    function toUint8Array(bb) {
+        let bytes = bb.bytes;
+        let limit = bb.limit;
+        return bytes.length === limit ? bytes : bytes.subarray(0, limit);
+    }
+
+    function grow(bb, count) {
+        let bytes = bb.bytes;
+        let offset = bb.offset;
+        let limit = bb.limit;
+        let finalOffset = offset + count;
+        if (finalOffset > bytes.length) {
+            let newBytes = new Uint8Array(finalOffset * 2);
+            newBytes.set(bytes);
+            bb.bytes = newBytes;
+        }
+        bb.offset = finalOffset;
+        if (finalOffset > limit) {
+            bb.limit = finalOffset;
+        }
+        return offset;
+    }
+
+    function advance(bb, count) {
+        let offset = bb.offset;
+        if (offset + count > bb.limit) {
+            throw new Error('Read past limit');
+        }
+        bb.offset += count;
+        return offset;
+    }
+
+
+
+    function wrapByteBuffer(bytes) {
+        return { bytes, offset: 0, limit: bytes.length };
+    }
+
+
+    function readBytes(bb, count) {
+        let offset = advance(bb, count);
+        return bb.bytes.subarray(offset, offset + count);
+    }
+
+    function readInt32(bb) {
+        let offset = advance(bb, 4);
+        let bytes = bb.bytes;
+        return (
+            (bytes[offset] << 24) |
+            (bytes[offset + 1] << 16) |
+            (bytes[offset + 2] << 8) |
+            bytes[offset + 3]
+        );
+    }
+
+
+    fetch("http://localhost:9010/screen.jpg?q=50&m=10").then(res=>{
+        const responseBody = res.body;
+        const reader = responseBody.getReader();
+        new ReadableStream({
+            start(controller) {
+                function processChunk() {
+                    reader
+                        .read()
+                        .then(({ done, value }) => {
+                            if (done) {
+                                controller.close();
+                                reader.releaseLock();
+                                responseBody.cancel();
+                                return;
+                            }
+                            console.log("===>",value)
+                            const bb = wrapByteBuffer(value);
+                            const width = readInt32(bb)
+                            const height = readInt32(bb)
+                            const quality = readInt32(bb)
+                            const maxImages = readInt32(bb)
+                            const scale = readInt32(bb)/100
+                            const delay = readInt32(bb)
+                            const ts = readInt32(bb)
+                            const tsDot = readInt32(bb)
+                            const len = readInt32(bb)
+                            const imageDate = readBytes(bb,len)
+                            const blob = new Blob([imageDate])
+                            const url = URL.createObjectURL(blob)
+                            const ts1 = Date.now() / 1000;
+                            document.querySelector("#screen").src=url
+                            const ts0 = ts + tsDot / 1000
+                            document.querySelector("#debug").innerHTML=JSON.stringify({
+                                width,height,quality,maxImages,scale,len,
+                                tsDot,
+                                ts0,
+                                ts1,
+                                delay,
+                                delay1:Math.floor( (ts1- ts0) * 1000)
+                            },null,2)
+                            processChunk();
+                        })
+                        .catch((error) => {
+                            console.error("Error reading stream:", error);
+                        });
+                }
+                processChunk();
+            },
+        });
+    })
+    const url = `http://localhost:9010/controller`
+
+    let isMouseDown = false;
+    function controlApi(cmd,useHttp){
+        if(!useHttp){
+            if(ws1 && ws1.readyState === WebSocket.OPEN){
+                console.log(cmd)
+                ws1.send(cmd)
+            }else{
+                console.log("readyState",ws1.readyState)
+            }
+        }else{
+            return fetch(url, {
+                    method: "POST",
+                    body: cmd
+                }
+            )
+        }
+    }
+    const  Screen = {
+        mousedown: (e)=>{
+            isMouseDown = true;
+            const {pageX,pageY} = e
+            const {top,left,width,height} = e.target.getBoundingClientRect()
+            const x = pageX -left
+            const y = pageY -top
+            controlApi(`${TYPE_INJECT_TOUCH_EVENT}|${ACTION_DOWN}|${POINTER_ID_MOUSE}|${x*2}|${y*2}|${width*2}|${height*2}|${0xffff}|${BUTTON_PRIMARY}|${BUTTON_PRIMARY}`)
+        },
+
+        mousemove: (e)=>{
+             if(isMouseDown){
+                 const {pageX,pageY} = e
+                 const {top,left,width,height} = e.target.getBoundingClientRect()
+                 const x = pageX -left
+                 const y = pageY -top
+                 controlApi(`${TYPE_INJECT_TOUCH_EVENT}|${ACTION_MOVE}|${POINTER_ID_MOUSE}|${x*2}|${y*2}|${width*2}|${height*2}|${0xffff}|${BUTTON_PRIMARY}|${BUTTON_PRIMARY}`)
+             }
+        },
+        mouseleave: (e)=>{
+            isMouseDown = false;
+            const {pageX,pageY} = e
+            const {top,left,width,height} = e.target.getBoundingClientRect()
+            const x = pageX -left
+            const y = pageY -top
+            controlApi(`${TYPE_INJECT_TOUCH_EVENT}|${ACTION_UP}|${POINTER_ID_MOUSE}|${x*2}|${y*2}|${width*2}|${height*2}|${0xffff}|${BUTTON_PRIMARY}|${BUTTON_PRIMARY}`)
+
+        },
+        mouseup: (e)=>{
+            isMouseDown = false;
+            const {pageX,pageY} = e
+            const {top,left,width,height} = e.target.getBoundingClientRect()
+            const x = pageX -left
+            const y = pageY -top
+            controlApi(`${TYPE_INJECT_TOUCH_EVENT}|${ACTION_UP}|${POINTER_ID_MOUSE}|${x*2}|${y*2}|${width*2}|${height*2}|${0xffff}|${BUTTON_PRIMARY}|${BUTTON_PRIMARY}`)
+
+        },
+
+        keydown: (e)=>{
+            const {keycode,key} = e
+            // console.log(keycode,e)
+            if(key.length === 1){
+                controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_DOWN}|${7}|1|${0x0}`)
+                return controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_UP}|${7}|1|${0x0}`)
+            }else if(key === 'Enter'){
+                controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_DOWN}|${KEYCODE_ENTER}|1|${0x0}`)
+                return controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_UP}|${KEYCODE_ENTER}|1|${0x0}`)
+            }else if(key === 'Backspace'){
+                controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_DOWN}|${KEYCODE_DEL}|1|${0x0}`)
+                return controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_UP}|${KEYCODE_DEL}|1|${0x0}`)
+            }else if(key === 'Escape'){
+                controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_DOWN}|${KEYCODE_BACK}|1|${0x0}`)
+                return controlApi(`${TYPE_INJECT_KEYCODE}|${ACTION_UP}|${KEYCODE_BACK}|1|${0x0}`)
+            }
+
+        }
+    }
+    function injectText(type){
+        switch (type) {
+            case TYPE_INJECT_TEXT:
+                return controlApi(`${type}|test`)
+
+            case TYPE_BACK_OR_SCREEN_ON:
+                return controlApi(`${type}|${ACTION_UP}`)
+            case TYPE_EXPAND_NOTIFICATION_PANEL:
+            case TYPE_EXPAND_SETTINGS_PANEL:
+            case TYPE_COLLAPSE_PANELS:
+            case TYPE_ROTATE_DEVICE:
+            case TYPE_OPEN_HARD_KEYBOARD_SETTINGS:
+            case TYPE_RESET_VIDEO:
+                return controlApi(`${type}|`)
+            case TYPE_SET_DISPLAY_POWER:
+                return controlApi(`${type}|1`)
+        }
+
+    }
+    window.onload = ()=>{
+        const screenEle = document.getElementById("screen")
+        screenEle.addEventListener("mousedown",Screen.mousedown)
+        screenEle.addEventListener("mouseup",Screen.mouseup)
+        screenEle.addEventListener("mousemove",Screen.mousemove)
+        screenEle.addEventListener("mouseleave",Screen.mouseleave)
+        document.body.addEventListener("keydown",Screen.keydown)
+    }
+</script>
+<div style="display: flex; flex-direction: row">
+    <div>
+        <img src="" draggable="false" id="screen"></img>
+    </div>
+    <div style="margin-left: 12px">
+        <div>
+            <button onclick="injectText(TYPE_INJECT_TEXT)">Text</button>
+        </div>
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_BACK_OR_SCREEN_ON)">TYPE_BACK_OR_SCREEN_ON</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_EXPAND_NOTIFICATION_PANEL)">TYPE_EXPAND_NOTIFICATION_PANEL</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_EXPAND_SETTINGS_PANEL)">TYPE_EXPAND_SETTINGS_PANEL</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_COLLAPSE_PANELS)">TYPE_COLLAPSE_PANELS</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_ROTATE_DEVICE)">TYPE_ROTATE_DEVICE</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_OPEN_HARD_KEYBOARD_SETTINGS)">TYPE_OPEN_HARD_KEYBOARD_SETTINGS</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_RESET_VIDEO)">TYPE_RESET_VIDEO</button>
+        </div>
+        <div style="margin-top: 12px">
+            <button onclick="injectText(TYPE_SET_DISPLAY_POWER)">TYPE_SET_DISPLAY_POWER</button>
+        </div>
+
+        <div style="margin-top: 12px">
+            <pre id="debug"></pre>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -13,7 +13,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import com.cicy.agent.R
+import com.cicy.agent.adr.R
 import okhttp3.WebSocket
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,7 +56,7 @@ class LocalServer : Service() {
                     0,
                     Intent().setComponent(
                         ComponentName(
-                            "com.cicy.agent",
+                            "com.cicy.agent.adr",
                             "com.cicy.agent.app.MainActivity"
                         )
                     )

@@ -21,7 +21,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.cicy.agent.R
+import com.cicy.agent.adr.R
 import com.cicy.agent.adr.ACT_REQUEST_MEDIA_PROJECTION
 import com.cicy.agent.adr.LocalServer
 import com.cicy.agent.adr.MessageActivityHandler

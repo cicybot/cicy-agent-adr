@@ -46,7 +46,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.cicy.agent.R
+import com.cicy.agent.adr.R
 import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
@@ -478,7 +478,7 @@ class RecordingService : Service() {
                     0,
                     Intent().setComponent(
                         ComponentName(
-                            "com.cicy.agent",
+                            "com.cicy.agent.adr",
                             "com.cicy.agent.app.MainActivity"
                         )
                     )

@@ -6,6 +6,7 @@ import android.content.res.AssetManager
 import android.os.Build
 import android.provider.Settings
 import android.util.DisplayMetrics
+import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import com.cicy.agent.app.HOME_URL_LOCAL
@@ -140,7 +141,26 @@ class MessageActivityHandler(
                 "agentAppInfo" -> {
                     response = getAgentAppInfo()
                 }
+                "statusBar" -> {
+                    val isLight = params.get(0) as Boolean
+                    val decorView = getContext().window.decorView
+                    var systemUiVisibility = decorView.systemUiVisibility
+                    val window = getContext().window
+                    window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
 
+                    if(isLight){
+                        window.statusBarColor = getContext().resources.getColor(R.color.white)
+                        systemUiVisibility = systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+
+                    }else{
+
+                        window.statusBarColor = getContext().resources.getColor(R.color.black)
+                        systemUiVisibility =
+                            systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                    }
+                    decorView.systemUiVisibility = systemUiVisibility
+
+                }
                 "onStartRecording" -> getContext().startRecording()
                 "onStopRecording" -> getContext().stopRecording()
                 "onStartInput" -> {

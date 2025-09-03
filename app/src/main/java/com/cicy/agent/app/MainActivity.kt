@@ -21,12 +21,12 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.cicy.agent.adr.R
 import com.cicy.agent.adr.ACT_REQUEST_MEDIA_PROJECTION
 import com.cicy.agent.adr.LocalServer
 import com.cicy.agent.adr.MessageActivityHandler
 import com.cicy.agent.adr.MessageHandler
 import com.cicy.agent.adr.PermissionRequestTransparentActivity
+import com.cicy.agent.adr.R
 import com.cicy.agent.adr.REQ_INVOKE_PERMISSION_ACTIVITY_MEDIA_PROJECTION
 import com.cicy.agent.adr.RES_FAILED
 import com.cicy.agent.adr.RecordingService
@@ -61,7 +61,6 @@ class MainActivity : AppCompatActivity() {
                 requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-
         setContentView(R.layout.activity_main)
         ContextCompat.startForegroundService(this, Intent(this, LocalServer::class.java))
         localBroadcastManager = LocalBroadcastManager.getInstance(this)

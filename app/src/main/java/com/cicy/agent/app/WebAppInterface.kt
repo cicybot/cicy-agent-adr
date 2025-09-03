@@ -1,13 +1,19 @@
 package com.cicy.agent.app
 
 import android.os.Build
+import android.view.View
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.view.WindowCompat
 import com.cicy.agent.adr.MessageActivityHandler
+import com.cicy.agent.adr.R
 import org.json.JSONArray
 import org.json.JSONObject
 
 class WebAppInterface(private val context: MainActivity) {
+
     @RequiresApi(Build.VERSION_CODES.O)
     @JavascriptInterface
     fun jsonRpc(data: String): String {
@@ -15,6 +21,7 @@ class WebAppInterface(private val context: MainActivity) {
             val jsonRequest = JSONObject(data)
             val method = jsonRequest.getString("method")
             val params = jsonRequest.optJSONArray("params") ?: JSONArray()
+
             val result = MessageActivityHandler(context).process(JSONObject().apply {
                 put("method", method)
                 put("params", params)
